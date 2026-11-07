@@ -22,6 +22,18 @@ from monitor import load_history
 from monitor_chart import plot_plotly
 from settings import config
 
+
+def fmt_date(ts, fmt="%B %-d, %Y"):
+    """Format a date, where ``%-d`` is the day without zero padding, on any OS.
+
+    ``%-d`` is a glibc/BSD extension to strftime that Windows rejects
+    ("Invalid format string"). Substituting the day number first gives the
+    same text on Linux, macOS, and Windows.
+    """
+    ts = pd.Timestamp(ts)
+    return ts.strftime(fmt.replace("%-d", str(ts.day)))
+
+
 OUTPUT_DIR = Path(config("OUTPUT_DIR"))
 PAGE_DIR = OUTPUT_DIR / "monitor_page"
 PAGE = PAGE_DIR / "index.html"
@@ -74,13 +86,13 @@ def build_html(history):
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     run_id = os.environ.get("GITHUB_RUN_ID")
     now = datetime.now(timezone.utc)
-    updated = f"{now:%B %-d, %Y at %H:%M} UTC"
+    updated = f"{fmt_date(now, '%B %-d, %Y at %H:%M')} UTC"
     if repo and run_id:
         updated = f'<a href="{server}/{repo}/actions/runs/{run_id}">{updated}</a>, by a GitHub Actions run'
     source = f' Code and history: <a href="{server}/{repo}">{escape(repo)}</a>.' if repo else ""
     recent = history.tail(10).iloc[::-1]
     rows = "\n".join(
-        f"<tr><td>{r.date:%a, %b %-d, %Y}</td><td class='num'>{r.svix_30:.1f}</td><td class='num'>{vol(r.vix)}</td>"
+        f"<tr><td>{fmt_date(r.date, '%a, %b %-d, %Y')}</td><td class='num'>{r.svix_30:.1f}</td><td class='num'>{vol(r.vix)}</td>"
         f"<td class='num'>{pct(r.p_star_20)}</td><td class='num'>{pct(r.p_log_20)}</td>"
         f"<td class='num'>{pct(r.p_power_20)}</td></tr>"
         for r in recent.itertuples()
@@ -88,9 +100,9 @@ def build_html(history):
     chart = make_figure(history).to_html(full_html=False, include_plotlyjs="cdn",
                                          config={"displaylogo": False, "responsive": True})
     return TEMPLATE.format(
-        p_log=pct(last["p_log_20"]), svix=f"{last['svix_30']:.1f}", as_of=f"{last['date']:%B %-d, %Y}",
+        p_log=pct(last["p_log_20"]), svix=f"{last['svix_30']:.1f}", as_of=f"{fmt_date(last['date'])}",
         reading="".join(f"<p>{line}</p>" for line in lines),
-        chart=chart, first=f"{history['date'].iloc[0]:%B %-d, %Y}", sessions=f"{len(history):,}", rows=rows,
+        chart=chart, first=f"{fmt_date(history['date'].iloc[0])}", sessions=f"{len(history):,}", rows=rows,
         updated=updated, source=source,
     )
 

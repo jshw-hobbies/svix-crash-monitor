@@ -61,10 +61,15 @@ def svix_squared(cdf):
     >>> round(svix_squared(risk_neutral_cdf(smile, rate=0.03)), 4)
     0.0401
     """
-    ## TODO: Implement this function as specified in the docstring above.
-    raise NotImplementedError(
-        "Implement svix_squared (see HOMEWORK INSTRUCTIONS at the top of this file)"
-    )
+    k = cdf.grid
+    r_f = cdf.forward
+    tau = cdf.maturity_years
+    # The out-of-the-money price curve: puts at or below the forward, calls
+    # above it. At k = R_f put and call are equal (put-call parity at the
+    # forward), so the curve is continuous and one trapezoid over the whole
+    # grid equals the sum of the two integrals, with no gap at the forward.
+    otm = np.where(k <= r_f, cdf.put_grid, cdf.call_grid)
+    return float(2.0 / (tau * r_f) * np.trapezoid(otm, k))
 
 
 def interpolate_variance(svix2_near, tau_near, svix2_far, tau_far, horizon_years=HORIZON_DAYS / 365.0):
